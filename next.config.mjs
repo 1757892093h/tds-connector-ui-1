@@ -17,11 +17,7 @@ const nextConfig = {
     const baseUrl = process.env.TDSC_BASE_URL || 'http://172.22.0.23:8085';
     return [
       {
-        source: '/zh/tdsc/:path*',
-        destination: `${baseUrl}/:path*`,
-      },
-      {
-        source: '/en/tdsc/:path*',
+        source: '/:locale(zh|en)/tdsc/:path*',
         destination: `${baseUrl}/:path*`,
       },
     ];
