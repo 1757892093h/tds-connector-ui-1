@@ -1,4 +1,4 @@
-import { ConnectorHealth, SecurityAlert, SystemMetrics } from "@/types";
+import { SecurityAlert, SystemMetrics } from "@/types";
 import { useState } from "react";
 
 export interface UseMonitoringReturn {
@@ -10,9 +10,7 @@ export interface UseMonitoringReturn {
   securityAlerts: SecurityAlert[];
   setSecurityAlerts: (alerts: SecurityAlert[]) => void;
 
-  // Connector health (from identity hook but used in monitoring)
-  connectorHealth: ConnectorHealth[];
-  setConnectorHealth: (health: ConnectorHealth[]) => void;
+
 
   // Actions
   resolveAlert: (alertId: string) => Promise<void>;
@@ -23,9 +21,6 @@ export interface UseMonitoringReturn {
   criticalAlerts: SecurityAlert[];
   unresolvedAlerts: SecurityAlert[];
   latestMetrics: SystemMetrics | null;
-  healthySystems: number;
-  systemsWithIssues: number;
-  averageResponseTime: number;
 }
 
 export function useMonitoring(): UseMonitoringReturn {
@@ -108,44 +103,7 @@ export function useMonitoring(): UseMonitoringReturn {
     },
   ]);
 
-  const [connectorHealth, setConnectorHealth] = useState<ConnectorHealth[]>([
-    {
-      id: "1",
-      name: "Main Connector",
-      status: "healthy",
-      lastHeartbeat: "2024-01-15T10:30:00Z",
-      responseTime: 120,
-      uptime: "99.9%",
-      version: "v1.2.3",
-    },
-    {
-      id: "2",
-      name: "Backup Connector",
-      status: "healthy",
-      lastHeartbeat: "2024-01-15T10:29:00Z",
-      responseTime: 150,
-      uptime: "99.7%",
-      version: "v1.2.2",
-    },
-    {
-      id: "3",
-      name: "Edge Connector A",
-      status: "warning",
-      lastHeartbeat: "2024-01-15T10:25:00Z",
-      responseTime: 350,
-      uptime: "98.5%",
-      version: "v1.2.1",
-    },
-    {
-      id: "4",
-      name: "Edge Connector B",
-      status: "critical",
-      lastHeartbeat: "2024-01-15T09:45:00Z",
-      responseTime: 0,
-      uptime: "95.2%",
-      version: "v1.1.8",
-    },
-  ]);
+
 
   // Actions
   const resolveAlert = async (alertId: string) => {
@@ -189,35 +147,16 @@ export function useMonitoring(): UseMonitoringReturn {
 
   const latestMetrics = systemMetrics.length > 0 ? systemMetrics[0] : null;
 
-  const healthySystems = connectorHealth.filter(
-    (health) => health.status === "healthy"
-  ).length;
-
-  const systemsWithIssues = connectorHealth.filter(
-    (health) => health.status === "warning" || health.status === "critical"
-  ).length;
-
-  const averageResponseTime =
-    connectorHealth
-      .filter((health) => health.responseTime > 0)
-      .reduce((sum, health) => sum + health.responseTime, 0) /
-      connectorHealth.filter((health) => health.responseTime > 0).length || 0;
-
   return {
     systemMetrics,
     setSystemMetrics,
     securityAlerts,
     setSecurityAlerts,
-    connectorHealth,
-    setConnectorHealth,
     resolveAlert,
     dismissAlert,
     refreshMetrics,
     criticalAlerts,
     unresolvedAlerts,
     latestMetrics,
-    healthySystems,
-    systemsWithIssues,
-    averageResponseTime,
   };
 }

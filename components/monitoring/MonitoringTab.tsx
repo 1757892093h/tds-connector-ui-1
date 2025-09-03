@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -20,22 +21,27 @@ import {
   Shield,
   X,
 } from "lucide-react";
+import { useState } from "react";
+import { AuditProgressDialog } from "./AuditProgressDialog";
 
 export function MonitoringTab() {
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
   const {
     systemMetrics,
     securityAlerts,
-    connectorHealth,
     resolveAlert,
     dismissAlert,
     refreshMetrics,
     criticalAlerts,
     unresolvedAlerts,
     latestMetrics,
-    healthySystems,
-    systemsWithIssues,
-    averageResponseTime,
   } = useMonitoring();
+
+  const handleAuditComplete = () => {
+    setAuditDialogOpen(false);
+    // Refresh monitoring data
+    refreshMetrics();
+  };
 
   return (
     <div className="space-y-6">
@@ -43,8 +49,8 @@ export function MonitoringTab() {
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard
           title="System Health"
-          value={`${healthySystems}/${connectorHealth.length}`}
-          description="Healthy systems"
+          value="Active"
+          description="System operational"
           icon={CheckCircle}
           variant="primary"
         />
@@ -56,9 +62,9 @@ export function MonitoringTab() {
           variant={criticalAlerts.length > 0 ? "secondary" : "default"}
         />
         <MetricCard
-          title="Avg Response Time"
-          value={`${Math.round(averageResponseTime)}ms`}
-          description="System performance"
+          title="System Performance"
+          value="Optimal"
+          description="Performance metrics"
           icon={Activity}
         />
         <MetricCard
@@ -153,6 +159,15 @@ export function MonitoringTab() {
               </div>
             )}
           </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setAuditDialogOpen(true)}
+            >
+              Audit
+            </Button>
+          </CardFooter>
         </Card>
 
         {/* Security Alerts */}
@@ -224,64 +239,6 @@ export function MonitoringTab() {
         </Card>
       </div>
 
-      {/* Connector Health Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Connector Health Status</CardTitle>
-          <CardDescription>
-            Health monitoring for all connected systems
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {connectorHealth.map((connector) => (
-              <div key={connector.id} className="rounded-lg border p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-medium">{connector.name}</h4>
-                  <StatusBadge status={connector.status} type="health" />
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Response Time</span>
-                    <span
-                      className={`font-medium ${
-                        connector.responseTime > 300
-                          ? "text-red-600"
-                          : connector.responseTime > 200
-                            ? "text-yellow-600"
-                            : "text-green-600"
-                      }`}
-                    >
-                      {connector.responseTime}ms
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Uptime</span>
-                    <span className="font-medium">{connector.uptime}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Version</span>
-                    <span className="font-medium">{connector.version}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      Last Heartbeat
-                    </span>
-                    <span className="text-xs">
-                      {new Date(connector.lastHeartbeat).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* System Metrics History */}
       <Card>
         <CardHeader>
@@ -314,6 +271,13 @@ export function MonitoringTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Audit Progress Dialog */}
+      <AuditProgressDialog
+        open={auditDialogOpen}
+        onOpenChange={setAuditDialogOpen}
+        onComplete={handleAuditComplete}
+      />
     </div>
   );
 }
