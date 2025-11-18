@@ -2,6 +2,7 @@ import Header from "@/components/header";
 import QueryClientProvider from "@/components/providers/QueryClientProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routing } from "@/i18n/routing";
+import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { DataSpaceProvider } from "@/lib/contexts/DataSpaceContext";
 import { hasLocale } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
@@ -40,25 +41,17 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   return (
-    <div
-      className={`${playfair.variable} ${sourceSans.variable} font-sans antialiased`}
-    >
+    <div className={`${playfair.variable} ${sourceSans.variable} font-sans antialiased`}>
       <QueryClientProvider>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <DataSpaceProvider>
-            <div className="bg-background min-h-screen">
-              {/* Header */}
-              <Header />
-
-              {/* Main Content */}
-              <div className="container mx-auto px-6 pb-8">{children}</div>
-            </div>
-          </DataSpaceProvider>
+        <ThemeProvider>
+          <AuthProvider> {/* 新增 */}
+            <DataSpaceProvider>
+              <div className="bg-background min-h-screen">
+                <Header />
+                <div className="container mx-auto px-6 pb-8">{children}</div>
+              </div>
+            </DataSpaceProvider>
+          </AuthProvider> {/* 新增 */}
         </ThemeProvider>
       </QueryClientProvider>
     </div>

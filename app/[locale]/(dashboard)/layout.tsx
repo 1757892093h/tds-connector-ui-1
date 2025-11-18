@@ -1,4 +1,5 @@
 import Navigation from "@/components/navigation";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export default function DashboardLayout({
   children,
@@ -6,9 +7,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="container mx-auto px-6">
-      <Navigation />
-      {children}
-    </div>
+    <ProtectedRoute>
+      <div className="container mx-auto px-6">
+        <Navigation />
+        {children}
+      </div>
+    </ProtectedRoute>
   );
 }

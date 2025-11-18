@@ -83,46 +83,66 @@ export function useIdentity(): UseIdentityReturn {
     name: "",
   });
 
+  // 在 useIdentity 函数中修改 generateDID
   const generateDID = async () => {
     setIsGenerating(true);
-    // Simulate DID generation
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const newDID = `did:example:connector${Date.now()}`;
-    setConnectorId(newDID);
-    setDidDocument(
-      JSON.stringify(
-        {
-          "@context": ["https://www.w3.org/ns/did/v1"],
-          id: newDID,
-          verificationMethod: [
-            {
-              id: `${newDID}#keys-1`,
-              type: "Ed25519VerificationKey2020",
-              controller: newDID,
-              publicKeyMultibase:
-                "z6MkqRYqQiSgvZQdnBytw86Qbs2ZWUkGv22od935YF4s8M7V",
-            },
-          ],
-          authentication: [`${newDID}#keys-1`],
-          service: [
-            {
-              id: `${newDID}#service-1`,
-              type: "DataConnectorService",
-              serviceEndpoint: "https://connector.jg.com/api",
-            },
-          ],
+    try {
+      // 调用后端 API 生成 DID
+      const response = await fetch("/tdsc/api/v1/identity/did/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        null,
-        2
-      )
-    );
-    setIsGenerating(false);
+      });
+  
+      if (!response.ok) {
+        throw new Error("Failed to generate DID");
+      }
+  
+      const data = await response.json();
+      const { did, didDocument, publicKey, privateKey } = data;
+  
+      // 存储私钥到 localStorage（实际应用中应该更安全地存储）
+      localStorage.setItem(`did_private_key_${did}`, privateKey);
+  
+      setConnectorId(did);
+      setDidDocument(JSON.stringify(didDocument, null, 2));
+      
+      return { did, didDocument, publicKey, privateKey };
+    } catch (error) {
+      console.error("DID generation error:", error);
+      throw error;
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const registerDID = async () => {
-    // Simulate DID registration
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsRegistered(true);
+    if (!connectorId || !didDocument) {
+      throw new Error("DID not generated");
+    }
+  
+    try {
+      const response = await fetch("/tdsc/api/v1/identity/did/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          did: connectorId,
+          didDocument: JSON.parse(didDocument),
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Failed to register DID");
+      }
+  
+      setIsRegistered(true);
+    } catch (error) {
+      console.error("DID registration error:", error);
+      throw error;
+    }
   };
 
   const connectConnector = async () => {
