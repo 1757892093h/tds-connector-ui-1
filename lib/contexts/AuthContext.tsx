@@ -14,7 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (did: string, signature: string) => Promise<void>;
-  register: (did: string, didDocument: string, signature: string) => Promise<void>;
+  register: (did: string, signature: string, username?: string, email?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -99,19 +99,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (did: string, didDocument: string, signature: string) => {
+  const register = async (did: string, signature: string, username?: string, email?: string) => {
     try {
       const response = await fetch("/tdsc/api/v1/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        //body: JSON.stringify({ did, didDocument, signature }),
         body: JSON.stringify({
-            did,
-            didDocument: JSON.parse(didDocument),  // 这里改成对象
-            signature,
-          }),
+          did,
+          signature,
+          username,
+          email,
+        }),
       });
 
       if (!response.ok) {

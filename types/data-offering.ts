@@ -101,46 +101,37 @@ export interface ExternalDataOffering {
 
 export interface DataRequest {
   id: string;
-  offeringId: string;
-  offeringTitle: string;
-  provider: string;
-  requestedAt: string;
-  status: "pending" | "approved" | "rejected" | "completed";
-  accessMode: "api" | "download";
+  dataOfferingId: string;
+  consumerConnectorId: string;
   purpose: string;
+  accessMode: "api" | "download";
+  status: "pending" | "approved" | "rejected" | "completed";
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export type ContractStatus =
+  | "draft"
+  | "pending_consumer"
   | "active"
   | "expired"
-  | "suspended"
-  | "transferring"
-  | "in_use"
-  | "data_unavailable"
+  | "rejected"
+  | "terminated"
   | "violated";
 
 export interface DataContract {
   id: string;
   name: string;
-  contractAddress: string;
-  providerDID: string;
-  consumerDID: string;
-  policy: string;
   status: ContractStatus;
-  createdAt: string;
+  providerConnectorId: string;
+  consumerConnectorId: string;
+  contractTemplateId: string;
+  dataOfferingId: string;
+  dataRequestId?: string;
+  contractAddress?: string;
+  blockchainTxId?: string;
+  blockchainNetwork: string;
   expiresAt?: string;
-  // 新增字段
-  accessCount: number;
-  dataVolume: string;
-  maxAccessCount?: number;
-  violationCount: number;
-  isViolated: boolean;
-  isExpired: boolean;
-  // Consumer perspective fields
-  connectorId?: string; // Which connector this contract is with
-  connectorName?: string;
-  dataOfferingId?: string;
-  dataOfferingTitle?: string;
-  accessMethods?: ("download" | "api")[];
-  lastAccessed?: string;
+  createdAt: string;
+  updatedAt?: string;
 }

@@ -7,17 +7,6 @@ import {
   SecurityRatingChart,
   StatusBadge,
 } from "@/components/shared";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +53,9 @@ import {
   Shield,
   Users,
   XCircle,
+  FileText,
+  FileX,
+  AlertCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -81,17 +73,17 @@ const categoryOptions = [
 const getContractStatusIcon = (status: ContractStatus) => {
   switch (status) {
     case "active":
-      return Activity;
-    case "transferring":
-      return Download;
-    case "in_use":
-      return Activity;
-    case "suspended":
-      return Ban;
-    case "expired":
+      return CheckCircle;
+    case "pending_consumer":
       return Clock;
-    case "data_unavailable":
-      return AlertTriangle;
+    case "draft":
+      return FileText;
+    case "rejected":
+      return XCircle;
+    case "terminated":
+      return FileX;
+    case "expired":
+      return AlertCircle;
     case "violated":
       return Ban;
     default:
@@ -164,16 +156,16 @@ const getContractStatusLabel = (status: ContractStatus) => {
   switch (status) {
     case "active":
       return "Active";
-    case "transferring":
-      return "Transferring";
-    case "in_use":
-      return "In Use";
-    case "suspended":
-      return "Suspended";
+    case "pending_consumer":
+      return "Pending Consumer";
+    case "draft":
+      return "Draft";
+    case "rejected":
+      return "Rejected";
+    case "terminated":
+      return "Terminated";
     case "expired":
       return "Expired";
-    case "data_unavailable":
-      return "Data Unavailable";
     case "violated":
       return "Violated";
     default:
@@ -201,7 +193,7 @@ export function DataConsumptionTab() {
   } = useDataOfferings();
 
   const activeContractsCount = dataContracts.filter(
-    (c: DataContract) => c.status === "active" || c.status === "in_use"
+    (c: DataContract) => c.status === "active"
   ).length;
 
   // State to track downloading files
@@ -272,7 +264,7 @@ export function DataConsumptionTab() {
         <MetricCard
           title="Active Contracts"
           value={activeContractsCount}
-          description="In use/active"
+          description="Active contracts"
           icon={Activity}
           variant="secondary"
         />
@@ -303,48 +295,6 @@ export function DataConsumptionTab() {
                   Discover and request data from other connectors
                 </CardDescription>
               </div>
-              {/* <ActionDialog
-                trigger={
-                  <Button size="sm" variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Connect Connector
-                  </Button>
-                }
-                title="Connect New Connector"
-                description="Establish connection with another trusted connector"
-                open={isConnectConnectorOpen}
-                onOpenChange={setIsConnectConnectorOpen}
-                maxWidth="sm"
-              >
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="connector-did">Connector DID</Label>
-                    <Input
-                      id="connector-did"
-                      value={newConnector.did}
-                      onChange={(e) => setNewConnector({ ...newConnector, did: e.target.value })}
-                      placeholder="did:example:connector123"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="connector-name">Display Name</Label>
-                    <Input
-                      id="connector-name"
-                      value={newConnector.name}
-                      onChange={(e) => setNewConnector({ ...newConnector, name: e.target.value })}
-                      placeholder="Research Institute"
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setIsConnectConnectorOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={connectConnector}>
-                      Connect
-                    </Button>
-                  </div>
-                </div>
-              </ActionDialog> */}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -447,246 +397,169 @@ export function DataConsumptionTab() {
         <Card>
           <CardHeader>
             <CardTitle>Data Contracts</CardTitle>
-            <CardDescription>Manage your active data contracts</CardDescription>
+            <CardDescription>View your data contracts</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="max-h-96 space-y-3 overflow-y-auto">
-              {dataContracts.map((contract: DataContract) => {
-                const ContractStatusIcon = getContractStatusIcon(
-                  contract.status
-                );
-                const isExpiredOrViolated =
-                  contract.isExpired || contract.isViolated;
-                const canTerminate =
-                  contract.status === "active" || contract.status === "in_use";
+              {dataContracts.length === 0 ? (
+                <div className="text-muted-foreground py-8 text-center text-sm">
+                  No data contracts yet. Request data access to create
+                  contracts.
+                </div>
+              ) : (
+                dataContracts.map((contract: DataContract) => {
+                  const ContractStatusIcon = getContractStatusIcon(
+                    contract.status
+                  );
 
-                return (
-                  <div key={contract.id} className="rounded-lg border p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="mb-2 flex items-center space-x-2">
-                          <ContractStatusIcon className="text-muted-foreground h-4 w-4" />
-                          <h4 className="text-sm font-medium">
-                            {contract.name}
-                          </h4>
-                          <div
-                            className={cn(
-                              "flex items-center space-x-1 rounded-md px-2 py-1 text-xs",
-                              contract.status === "active" &&
-                                "bg-green-100 text-green-800",
-                              contract.status === "transferring" &&
-                                "bg-blue-100 text-blue-800",
-                              contract.status === "in_use" &&
-                                "bg-purple-100 text-purple-800",
-                              contract.status === "suspended" &&
-                                "bg-gray-100 text-gray-800",
-                              contract.status === "expired" &&
-                                "bg-orange-100 text-orange-800",
-                              contract.status === "data_unavailable" &&
-                                "bg-red-100 text-red-800",
-                              contract.status === "violated" &&
-                                "bg-red-100 text-red-800"
-                            )}
-                          >
-                            <span>
-                              {getContractStatusLabel(contract.status)}
+                  return (
+                    <div key={contract.id} className="rounded-lg border p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="mb-2 flex items-center space-x-2">
+                            <ContractStatusIcon className="text-muted-foreground h-4 w-4" />
+                            <h4 className="text-sm font-medium">
+                              {contract.name}
+                            </h4>
+                            <div
+                              className={cn(
+                                "flex items-center space-x-1 rounded-md px-2 py-1 text-xs",
+                                contract.status === "active" &&
+                                  "bg-green-100 text-green-800",
+                                contract.status === "pending_consumer" &&
+                                  "bg-yellow-100 text-yellow-800",
+                                contract.status === "draft" &&
+                                  "bg-gray-100 text-gray-800",
+                                contract.status === "rejected" &&
+                                  "bg-red-100 text-red-800",
+                                contract.status === "terminated" &&
+                                  "bg-orange-100 text-orange-800",
+                                contract.status === "expired" &&
+                                  "bg-orange-100 text-orange-800",
+                                contract.status === "violated" &&
+                                  "bg-red-100 text-red-800"
+                              )}
+                            >
+                              <span>
+                                {getContractStatusLabel(contract.status)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Button variant="ghost" size="sm" title="View Details">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {contract.status === "active" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Download Data"
+                              onClick={() => handleDownloadFile(contract.id)}
+                              disabled={downloadingFiles.has(contract.id)}
+                            >
+                              {downloadingFiles.has(contract.id) ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Contract Details */}
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Provider Connector:
+                            </span>
+                            <span className="ml-2 truncate font-mono">
+                              {contract.providerConnectorId}
                             </span>
                           </div>
-                        </div>
-                        {contract.connectorName && (
-                          <div className="text-muted-foreground mb-1 flex items-center space-x-1 text-xs">
-                            <Globe className="h-3 w-3" />
-                            <span>Connected to: {contract.connectorName}</span>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Consumer Connector:
+                            </span>
+                            <span className="ml-2 truncate font-mono">
+                              {contract.consumerConnectorId}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Button variant="ghost" size="sm" title="View Details">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {contract.accessMethods?.includes("download") && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Download Data"
-                            onClick={() => handleDownloadFile(contract.id)}
-                            disabled={downloadingFiles.has(contract.id)}
-                          >
-                            {downloadingFiles.has(contract.id) ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Download className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
-                        {contract.accessMethods?.includes("api") && (
-                          <Button variant="ghost" size="sm" title="API Access">
-                            <Activity className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canTerminate && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title={
-                                  isExpiredOrViolated
-                                    ? "Terminate Contract (Issues Detected)"
-                                    : "Terminate Contract"
-                                }
-                                className={
-                                  isExpiredOrViolated ? "text-red-600" : ""
-                                }
-                              >
-                                <Ban className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Confirm Contract Termination
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  {isExpiredOrViolated ? (
-                                    <>
-                                      Issues detected with this contract:
-                                      {contract.isExpired && (
-                                        <div>• Contract has expired</div>
-                                      )}
-                                      {contract.isViolated && (
-                                        <div>
-                                          • Contract has violations (Count:{" "}
-                                          {contract.violationCount})
-                                        </div>
-                                      )}
-                                      <br />
-                                      Are you sure you want to terminate this
-                                      contract? This action cannot be undone.
-                                    </>
-                                  ) : (
-                                    "Are you sure you want to terminate this contract? This will stop all data access and cannot be undone."
-                                  )}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className={
-                                    isExpiredOrViolated
-                                      ? "bg-red-600 hover:bg-red-700"
-                                      : ""
-                                  }
-                                  onClick={() => {
-                                    // TODO: Implement termination logic
-                                    console.log(
-                                      "Terminating contract:",
-                                      contract.id
-                                    );
-                                  }}
-                                >
-                                  {isExpiredOrViolated
-                                    ? "Force Terminate"
-                                    : "Confirm Terminate"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Contract Details */}
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-1 gap-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            Provider DID:
-                          </span>
-                          <span className="ml-2 truncate font-mono">
-                            {contract.providerDID}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            Access Policy:
-                          </span>
-                          <span className="font-medium">{contract.policy}</span>
-                        </div>
-                        {contract.dataOfferingTitle && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Contract Template:
+                            </span>
+                            <span className="ml-2 truncate font-mono">
+                              {contract.contractTemplateId}
+                            </span>
+                          </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">
                               Data Offering:
                             </span>
-                            <span className="font-medium">
-                              {contract.dataOfferingTitle}
+                            <span className="ml-2 truncate font-mono">
+                              {contract.dataOfferingId}
                             </span>
                           </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Usage Statistics */}
-                    <div className="mt-3 border-t pt-3">
-                      <div className="grid grid-cols-3 gap-4 text-xs">
-                        <div className="text-center">
-                          <div className="text-muted-foreground">
-                            Access Count
-                          </div>
-                          <div className="text-sm font-medium">
-                            {contract.accessCount}
-                            {contract.maxAccessCount && (
+                          {contract.contractAddress && (
+                            <div className="flex justify-between">
                               <span className="text-muted-foreground">
-                                /{contract.maxAccessCount}
+                                Blockchain Address:
                               </span>
-                            )}
+                              <span className="ml-2 truncate font-mono text-blue-600">
+                                {contract.contractAddress}
+                              </span>
+                            </div>
+                          )}
+                          {contract.blockchainTxId && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">
+                                Transaction ID:
+                              </span>
+                              <span className="ml-2 truncate font-mono text-blue-600">
+                                {contract.blockchainTxId}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Blockchain Network:
+                            </span>
+                            <span className="font-medium">
+                              {contract.blockchainNetwork}
+                            </span>
                           </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-muted-foreground">
-                            Data Volume
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Created:
+                            </span>
+                            <span>
+                              {new Date(contract.createdAt).toLocaleString()}
+                            </span>
                           </div>
-                          <div className="text-sm font-medium">
-                            {contract.dataVolume}
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-muted-foreground">
-                            Last Access
-                          </div>
-                          <div className="text-sm font-medium">
-                            {contract.lastAccessed
-                              ? new Date(
-                                  contract.lastAccessed
-                                ).toLocaleDateString()
-                              : "Never"}
-                          </div>
+                          {contract.expiresAt && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">
+                                Expires:
+                              </span>
+                              <span
+                                className={cn(
+                                  contract.status === "expired" &&
+                                    "text-red-600 font-medium"
+                                )}
+                              >
+                                {new Date(contract.expiresAt).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-
-                    {/* Warning Information */}
-                    {(contract.isExpired || contract.isViolated) && (
-                      <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2">
-                        <div className="flex items-center space-x-2 text-xs text-red-800">
-                          <AlertTriangle className="h-4 w-4" />
-                          <div>
-                            {contract.isExpired && (
-                              <div>Contract has expired</div>
-                            )}
-                            {contract.isViolated && (
-                              <div>
-                                Contract violations detected (Count:{" "}
-                                {contract.violationCount})
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </CardContent>
         </Card>

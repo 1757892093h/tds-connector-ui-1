@@ -2397,6 +2397,106 @@ export const dataSpaceConfigs: DataSpaceDataConfig = {
   },
 };
 
+// Helper function to transform DataRequests from old format to new format
+function transformDataRequests(dataRequests: any[]) {
+  return dataRequests.map((request) => ({
+    id: request.id,
+    dataOfferingId: request.offeringId || request.dataOfferingId,
+    consumerConnectorId: request.consumerConnectorId || "default-consumer",
+    purpose: request.purpose,
+    accessMode: request.accessMode,
+    status: request.status,
+    createdAt: request.requestedAt || request.createdAt,
+    updatedAt: request.updatedAt,
+    // Remove old fields: offeringTitle, provider
+  }));
+}
+
+// Helper function to transform DataContracts from old format to new format
+function transformDataContracts(dataContracts: any[]) {
+  return dataContracts.map((contract) => {
+    // Map old status values to new ones
+    let newStatus = contract.status;
+    if (newStatus === "in_use") newStatus = "active";
+    if (newStatus === "transferring") newStatus = "active";
+    if (newStatus === "suspended") newStatus = "terminated";
+    if (newStatus === "data_unavailable") newStatus = "terminated";
+
+    return {
+      id: contract.id,
+      name: contract.name,
+      status: newStatus,
+      providerConnectorId: contract.providerDID || contract.providerConnectorId || "unknown-provider",
+      consumerConnectorId: contract.consumerDID || contract.consumerConnectorId || "unknown-consumer",
+      contractTemplateId: contract.policy || contract.contractTemplateId || "default-template",
+      dataOfferingId: contract.dataOfferingId || "unknown-offering",
+      dataRequestId: contract.dataRequestId,
+      contractAddress: contract.contractAddress,
+      blockchainTxId: contract.blockchainTxId,
+      blockchainNetwork: contract.blockchainNetwork || "ethereum-testnet",
+      expiresAt: contract.expiresAt,
+      createdAt: contract.createdAt,
+      updatedAt: contract.updatedAt,
+      // Remove old fields by not including them
+    };
+  });
+}
+
+// Helper function to transform old data format to new format
+function transformContractTemplates(contractTemplates: any[], policyTemplates: any[]) {
+  return contractTemplates.map((template) => {
+    // Get policy templates from policyIds
+    const selectedPolicies = policyTemplates.filter((policy) =>
+      template.policyIds?.includes(policy.id)
+    );
+
+    return {
+      ...template,
+      connectorId: template.connectorId || "default-connector",
+      policyTemplates: selectedPolicies,
+      // Remove old fields
+      policyIds: undefined,
+      policies: undefined,
+    };
+  });
+}
+
+// Helper function to ensure policyTemplates have connectorId
+function transformPolicyTemplates(policyTemplates: any[]) {
+  return policyTemplates.map((policy) => ({
+    ...policy,
+    connectorId: policy.connectorId || "default-connector",
+    rules: policy.rules.map((rule: any) => ({
+      ...rule,
+      value: String(rule.value), // Convert to string
+      createdAt: rule.createdAt || policy.createdAt,
+    })),
+  }));
+}
+
 export function getDataForSpace(dataSpaceId: string) {
-  return dataSpaceConfigs[dataSpaceId] || dataSpaceConfigs.healthcare;
+  const spaceData = dataSpaceConfigs[dataSpaceId] || dataSpaceConfigs.healthcare;
+
+  // Transform all data to match new schema
+  const transformedDataRequests = transformDataRequests(
+    spaceData.dataRequests
+  );
+  const transformedDataContracts = transformDataContracts(
+    spaceData.dataContracts
+  );
+  const transformedPolicyTemplates = transformPolicyTemplates(
+    spaceData.policyTemplates
+  );
+  const transformedContractTemplates = transformContractTemplates(
+    spaceData.contractTemplates,
+    transformedPolicyTemplates
+  );
+
+  return {
+    ...spaceData,
+    dataRequests: transformedDataRequests,
+    dataContracts: transformedDataContracts,
+    policyTemplates: transformedPolicyTemplates,
+    contractTemplates: transformedContractTemplates,
+  };
 }

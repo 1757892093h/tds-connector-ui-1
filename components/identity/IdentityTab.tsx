@@ -28,7 +28,7 @@ import {
   User,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { CreateConnectorDialog } from "./CreateConnectorDialog";
 import {
   verifyToken,
@@ -49,55 +49,64 @@ export function IdentityTab() {
   const [didViewMode, setDidViewMode] = useState<"visual" | "json">("visual");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  // 加载用户信息
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  // 加载连接器列表
-  useEffect(() => {
-    if (user) {
-      loadConnectors();
-    }
-  }, [user]);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       setIsLoadingUser(true);
       const userData = await verifyToken();
       setUser(userData);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Failed to load user data:", error);
       toast({
         title: "Failed to load user data",
-        description: "Please try logging in again",
+        description: error?.message || "Please try logging in again",
         variant: "destructive",
       });
-      console.error(error);
+      // 清除无效的 token
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user_did");
+      setUser(null);
     } finally {
       setIsLoadingUser(false);
     }
-  };
+  }, [toast]);
 
-  const loadConnectors = async () => {
+  const loadConnectors = useCallback(async () => {
     try {
       setIsLoadingConnectors(true);
       const connectorList = await listConnectors();
       setConnectors(connectorList);
-      // 自动选择第一个连接器
-      if (connectorList.length > 0 && !selectedConnector) {
-        setSelectedConnector(connectorList[0]);
-      }
-    } catch (error) {
+      // 自动选择第一个连接器（只在没有选中连接器时）
+      setSelectedConnector((prev) => {
+        if (connectorList.length > 0 && !prev) {
+          return connectorList[0];
+        } else if (connectorList.length === 0) {
+          return null;
+        }
+        return prev;
+      });
+    } catch (error: any) {
+      console.error("Failed to load connectors:", error);
       toast({
         title: "Failed to load connectors",
-        description: "Please try again later",
+        description: error?.message || "Please try again later",
         variant: "destructive",
       });
-      console.error(error);
+      setConnectors([]);
+      setSelectedConnector(null);
     } finally {
       setIsLoadingConnectors(false);
     }
-  };
+  }, [toast]);
+
+  // 加载用户信息
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  // 加载连接器列表（不依赖 user，因为 API 需要认证 token）
+  useEffect(() => {
+    loadConnectors();
+  }, [loadConnectors]);
 
   const handleRefresh = () => {
     loadUserData();
@@ -133,195 +142,208 @@ export function IdentityTab() {
     didDocument,
   }: {
     didDocument: BackendDIDDocument;
-  }) => (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {/* 标识符卡片 */}
-      <Card className="border-border border">
-        <CardHeader className="pb-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 rounded-lg p-2">
-                <IdCard className="text-primary h-5 w-5" />
-              </div>
-              <CardTitle className="text-lg">{t("identifier")}</CardTitle>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {t("uniqueIdentifier")}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <p className="text-muted-foreground mb-2 text-sm">
-              {t("didSubjectIdentifier")}
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="bg-muted flex-1 rounded font-mono text-sm break-all p-2">
-                {didDocument.id}
-              </code>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => copyToClipboard(didDocument.id, "DID")}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  }) => {
+    // 安全检查
+    const hasAuth = didDocument.authentication && didDocument.authentication.length > 0;
+    const hasVerificationMethod = didDocument.verificationMethod && didDocument.verificationMethod.length > 0;
+    const hasService = didDocument.service && didDocument.service.length > 0;
 
-      {/* 认证方式卡片 */}
-      <Card className="border-border border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 rounded-lg p-2">
-                <Lock className="text-primary h-5 w-5" />
+    return (
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* 标识符卡片 */}
+        <Card className="border-border border">
+          <CardHeader className="pb-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 rounded-lg p-2">
+                  <IdCard className="text-primary h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">{t("identifier")}</CardTitle>
               </div>
-              <CardTitle className="text-lg">{t("authentication")}</CardTitle>
+              <Badge variant="secondary" className="text-xs">
+                {t("uniqueIdentifier")}
+              </Badge>
             </div>
-            <Badge variant="secondary" className="text-xs">
-              {t("authMethod")}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <p className="text-muted-foreground mb-2 text-sm">
-              {t("publicKeyAuth")}
-            </p>
-            <code className="bg-muted block rounded font-mono text-sm break-all p-2">
-              {didDocument.authentication[0]}
-            </code>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <p className="text-muted-foreground mb-2 text-sm">
+                {t("didSubjectIdentifier")}
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="bg-muted flex-1 rounded font-mono text-sm break-all p-2">
+                  {didDocument.id || "N/A"}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(didDocument.id || "", "DID")}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* 公钥信息卡片 */}
-      <Card className="border-border border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 rounded-lg p-2">
-                <Key className="text-primary h-5 w-5" />
+        {/* 认证方式卡片 */}
+        {hasAuth && (
+          <Card className="border-border border">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 rounded-lg p-2">
+                    <Lock className="text-primary h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-lg">{t("authentication")}</CardTitle>
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {t("authMethod")}
+                </Badge>
               </div>
-              <CardTitle className="text-lg">{t("publicKeyInfo")}</CardTitle>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {didDocument.verificationMethod.length} key(s)
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <p className="text-muted-foreground mb-2 text-sm">
-              {t("verificationKey")}
-            </p>
-            <code className="mb-3 block font-mono text-sm">
-              {didDocument.verificationMethod[0].id}
-            </code>
-            <div className="space-y-2">
-              <div className="flex justify-between border-b border-gray-100 py-2">
-                <span className="text-muted-foreground text-sm">
-                  {t("algorithmType")}
-                </span>
-                <span className="text-sm font-medium">
-                  {didDocument.verificationMethod[0].type}
-                </span>
-              </div>
+            </CardHeader>
+            <CardContent>
               <div>
-                <span className="text-muted-foreground mb-1 block text-sm">
-                  Public Key
-                </span>
-                <div className="flex items-center gap-2">
-                  <code className="bg-muted flex-1 truncate rounded font-mono text-sm break-all p-2">
-                    {didDocument.verificationMethod[0].publicKeyMultibase}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      copyToClipboard(
-                        didDocument.verificationMethod[0].publicKeyMultibase,
-                        "Public Key"
-                      )
-                    }
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                <p className="text-muted-foreground mb-2 text-sm">
+                  {t("publicKeyAuth")}
+                </p>
+                <code className="bg-muted block rounded font-mono text-sm break-all p-2">
+                  {didDocument.authentication[0]}
+                </code>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 公钥信息卡片 */}
+        {hasVerificationMethod && (
+          <Card className="border-border border">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 rounded-lg p-2">
+                    <Key className="text-primary h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-lg">{t("publicKeyInfo")}</CardTitle>
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {didDocument.verificationMethod.length} key(s)
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <p className="text-muted-foreground mb-2 text-sm">
+                  {t("verificationKey")}
+                </p>
+                <code className="mb-3 block font-mono text-sm">
+                  {didDocument.verificationMethod[0]?.id || "N/A"}
+                </code>
+                <div className="space-y-2">
+                  <div className="flex justify-between border-b border-gray-100 py-2">
+                    <span className="text-muted-foreground text-sm">
+                      {t("algorithmType")}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {didDocument.verificationMethod[0]?.type || "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground mb-1 block text-sm">
+                      Public Key
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <code className="bg-muted flex-1 truncate rounded font-mono text-sm break-all p-2">
+                        {didDocument.verificationMethod[0]?.publicKeyMultibase || "N/A"}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          copyToClipboard(
+                            didDocument.verificationMethod[0]?.publicKeyMultibase || "",
+                            "Public Key"
+                          )
+                        }
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* 服务信息卡片 */}
-      <Card className="border-border border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 rounded-lg p-2">
-                <Shield className="text-primary h-5 w-5" />
+        {/* 服务信息卡片 */}
+        {hasService && (
+          <Card className="border-border border">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 rounded-lg p-2">
+                    <Shield className="text-primary h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-lg">{t("serviceEndpoints")}</CardTitle>
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {didDocument.service.length} service(s)
+                </Badge>
               </div>
-              <CardTitle className="text-lg">{t("serviceEndpoints")}</CardTitle>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {didDocument.service.length} service(s)
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <p className="text-muted-foreground mb-2 text-sm">
-              {t("connectorServiceInterface")}
-            </p>
-            <code className="mb-3 block truncate font-mono text-xs">
-              {didDocument.service[0].id}
-            </code>
-            <div className="space-y-2">
-              <div className="flex justify-between border-b border-gray-100 py-2">
-                <span className="text-muted-foreground text-sm">
-                  {t("serviceType")}
-                </span>
-                <span className="text-sm font-medium">
-                  {didDocument.service[0].type}
-                </span>
-              </div>
+            </CardHeader>
+            <CardContent>
               <div>
-                <span className="text-muted-foreground mb-1 block text-sm">
-                  {t("serviceAddress")}
-                </span>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={didDocument.service[0].serviceEndpoint}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-muted text-primary flex-1 truncate rounded font-mono text-sm break-all p-2 hover:underline"
-                  >
-                    {didDocument.service[0].serviceEndpoint}
-                  </a>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      copyToClipboard(
-                        didDocument.service[0].serviceEndpoint,
-                        "Service Endpoint"
-                      )
-                    }
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                <p className="text-muted-foreground mb-2 text-sm">
+                  {t("connectorServiceInterface")}
+                </p>
+                <code className="mb-3 block truncate font-mono text-xs">
+                  {didDocument.service[0]?.id || "N/A"}
+                </code>
+                <div className="space-y-2">
+                  <div className="flex justify-between border-b border-gray-100 py-2">
+                    <span className="text-muted-foreground text-sm">
+                      {t("serviceType")}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {didDocument.service[0]?.type || "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground mb-1 block text-sm">
+                      {t("serviceAddress")}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={didDocument.service[0]?.serviceEndpoint || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-muted text-primary flex-1 truncate rounded font-mono text-sm break-all p-2 hover:underline"
+                      >
+                        {didDocument.service[0]?.serviceEndpoint || "N/A"}
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          copyToClipboard(
+                            didDocument.service[0]?.serviceEndpoint || "",
+                            "Service Endpoint"
+                          )
+                        }
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
 
   // 加载骨架
   const LoadingSkeleton = () => (

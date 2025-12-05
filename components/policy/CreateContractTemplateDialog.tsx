@@ -86,8 +86,8 @@ export function CreateContractTemplateDialog({
     > = {
       name: formData.name,
       description: formData.description,
-      policyIds: selectedPolicyIds,
-      policies: selectedPolicies,
+      connectorId: "default-connector", // TODO: Get from context
+      policyTemplates: selectedPolicies,
       contractType: formData.contractType,
       status: formData.status,
       updatedAt: new Date().toISOString(),

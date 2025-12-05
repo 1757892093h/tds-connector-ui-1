@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { Toaster } from "sonner";
-
+//全局配置
 export const metadata: Metadata = {
   title: "Trusted Data Space Connector",
   description:

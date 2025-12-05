@@ -8,9 +8,8 @@ import type {
   DataSpace,
 } from "@/types/identity";
 
-// API基础URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
-const API_PREFIX = "/api/v1";
+// API基础URL - 使用 Next.js rewrite 代理路径，避免 CORS 问题
+const API_PREFIX = "/tdsc/api/v1";
 
 // 获取认证Token
 function getAuthToken(): string | null {
@@ -30,7 +29,7 @@ async function apiRequest<T>(
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${API_PREFIX}${endpoint}`, {
+  const response = await fetch(`${API_PREFIX}${endpoint}`, {
     ...options,
     headers,
   });
@@ -130,37 +129,7 @@ export async function getConnector(connectorId: string): Promise<Connector> {
  * 获取所有数据空间
  */
 export async function listDataSpaces(): Promise<DataSpace[]> {
-  // 注意：这个接口可能需要在后端实现，目前先返回模拟数据
-  // 如果后端已实现，取消注释下面的代码
-  // return apiRequest<DataSpace[]>("/data-spaces");
-
-  // 临时方案：返回固定的数据空间列表
-  return Promise.resolve([
-    {
-      id: "healthcare-space-id",
-      code: "healthcare",
-      name: "Healthcare Data Space",
-      description: "Medical and healthcare data sharing",
-    },
-    {
-      id: "finance-space-id",
-      code: "finance",
-      name: "Finance Data Space",
-      description: "Financial data and transactions",
-    },
-    {
-      id: "mobility-space-id",
-      code: "mobility",
-      name: "Mobility Data Space",
-      description: "Transportation and logistics data",
-    },
-    {
-      id: "energy-space-id",
-      code: "energy",
-      name: "Energy Data Space",
-      description: "Energy consumption and grid data",
-    },
-  ]);
+  return apiRequest<DataSpace[]>("/identity/data-spaces");
 }
 
 // ==================== 辅助函数 ====================

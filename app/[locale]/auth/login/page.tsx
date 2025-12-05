@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";//用于处理页面跳转
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "sonner";//用来显示弹窗通知
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,14 +17,14 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault();//阻止浏览器执行默认的 HTML 表单提交（这会导致整个页面刷新）。希望用 JavaScript 在后台处理登录，而不刷新页面。
     
     if (!did || !signature) {
       toast.error("Please enter DID and signature");
       return;
     }
 
-    try {
+    try {//处理异步操作的成功、失败和收尾
       setIsLoading(true);
       await login(did, signature);
       toast.success("Login successful");

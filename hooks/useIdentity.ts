@@ -107,8 +107,6 @@ export function useIdentity(): UseIdentityReturn {
   
       setConnectorId(did);
       setDidDocument(JSON.stringify(didDocument, null, 2));
-      
-      return { did, didDocument, publicKey, privateKey };
     } catch (error) {
       console.error("DID generation error:", error);
       throw error;
@@ -117,27 +115,36 @@ export function useIdentity(): UseIdentityReturn {
     }
   };
 
-  const registerDID = async () => {
+  const registerDID = async (displayName: string, dataSpaceId: string) => {
     if (!connectorId || !didDocument) {
       throw new Error("DID not generated");
     }
-  
+
     try {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        throw new Error("Authentication required. Please login first.");
+      }
+
       const response = await fetch("/tdsc/api/v1/identity/did/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           did: connectorId,
-          didDocument: JSON.parse(didDocument),
+          display_name: displayName,
+          data_space_id: dataSpaceId,
+          did_document: JSON.parse(didDocument),
         }),
       });
-  
+
       if (!response.ok) {
-        throw new Error("Failed to register DID");
+        const errorData = await response.json().catch(() => ({ detail: "Failed to register DID" }));
+        throw new Error(errorData.detail || "Failed to register DID");
       }
-  
+
       setIsRegistered(true);
     } catch (error) {
       console.error("DID registration error:", error);

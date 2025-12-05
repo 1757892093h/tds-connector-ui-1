@@ -3,7 +3,12 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(nul)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm type-check:*)",
+      "Bash(pnpm dev)",
+      "Bash(curl:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

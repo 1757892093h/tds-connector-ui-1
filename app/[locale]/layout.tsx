@@ -10,7 +10,7 @@ import { Playfair_Display, Source_Sans_3 } from "next/font/google";
 import { notFound } from "next/navigation";
 import type React from "react";
 import "../globals.css";
-
+//provider提供各种上下文
 const playfair = Playfair_Display({
   subsets: ["latin"],
   display: "swap",

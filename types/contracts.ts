@@ -12,71 +12,36 @@ export interface PolicyRule {
     | "qps_limit";
   name: string;
   description: string;
-  value: string | number;
+  value: string;
   unit?: string;
   isActive: boolean;
+  createdAt: string;
 }
 
 export interface PolicyTemplate {
   id: string;
+  connectorId: string;
   name: string;
   description: string;
-  rules: PolicyRule[];
   category: "access" | "usage" | "retention" | "compliance";
   severity: "low" | "medium" | "high";
   enforcementType: "automatic" | "manual" | "hybrid";
+  rules: PolicyRule[];
   createdAt: string;
   updatedAt?: string;
 }
 
 export interface ContractTemplate {
   id: string;
+  connectorId: string;
   name: string;
   description: string;
-  policyIds: string[];
-  policies: PolicyTemplate[];
   contractType: "single_policy" | "multi_policy";
   status: "draft" | "active" | "deprecated";
+  usageCount: number;
+  policyTemplates: PolicyTemplate[];
   createdAt: string;
   updatedAt?: string;
-  usageCount: number;
-}
-
-export interface DigitalContract {
-  id: string;
-  title: string;
-  description: string;
-  provider: string;
-  consumer: string;
-  dataOfferingId: string;
-  policyTemplateId: string;
-  status:
-    | "draft"
-    | "pending"
-    | "active"
-    | "expired"
-    | "terminated"
-    | "violated";
-  createdAt: string;
-  startDate: string;
-  endDate: string;
-  terms: ContractTerm[];
-  blockchainTxId?: string;
-  violationCount: number;
-}
-
-export interface ContractTerm {
-  id: string;
-  type:
-    | "access_limit"
-    | "retention_period"
-    | "usage_restriction"
-    | "payment"
-    | "compliance";
-  description: string;
-  value: string;
-  unit?: string;
-  enforced: boolean;
 }
 
 export interface SmartContractTemplate {

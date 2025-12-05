@@ -54,17 +54,19 @@ const policyRuleTypeNames = {
 
 export function PolicyContractsTab() {
   const {
-    digitalContracts,
     policyTemplates,
     contractTemplates,
-    activeContracts,
-    pendingContracts,
     isCreateContractTemplateOpen,
     setIsCreateContractTemplateOpen,
     createContractTemplate,
   } = useContracts();
 
   const { currentDataSpace } = useDataSpace();
+
+  // Calculate active contract templates count
+  const activeTemplatesCount = contractTemplates.filter(
+    (ct) => ct.status === "active"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -85,9 +87,9 @@ export function PolicyContractsTab() {
           variant="secondary"
         />
         <MetricCard
-          title="Active Contracts"
-          value={activeContracts.length}
-          description="Currently enforced"
+          title="Active Templates"
+          value={activeTemplatesCount}
+          description="Currently active"
           icon={CheckCircle}
         />
         <MetricCard
@@ -283,38 +285,20 @@ export function PolicyContractsTab() {
                           Included Policies:
                         </h5>
                         <div className="space-y-1">
-                          {contract.policyIds.map((policyId) => {
-                            const policy = policyTemplates.find(
-                              (p) => p.id === policyId
-                            );
-                            return policy ? (
-                              <div
-                                key={policyId}
-                                className="bg-muted/50 flex items-center gap-2 rounded py-1"
-                              >
-                                <Shield className="text-primary h-4 w-4" />
-                                <span className="text-sm font-medium">
-                                  {policy.name}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className="ml-auto text-xs"
-                                >
-                                  1 rule
-                                </Badge>
-                              </div>
-                            ) : (
-                              <div
-                                key={policyId}
-                                className="bg-muted/50 flex items-center gap-2 rounded p-2"
-                              >
-                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                <span className="text-muted-foreground text-sm">
-                                  Policy not found: {policyId}
-                                </span>
-                              </div>
-                            );
-                          })}
+                          {contract.policyTemplates.map((policy) => (
+                            <div
+                              key={policy.id}
+                              className="bg-muted/50 flex items-center gap-2 rounded py-1"
+                            >
+                              <Shield className="text-primary h-4 w-4" />
+                              <span className="text-sm font-medium">
+                                {policy.name}
+                              </span>
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {policy.rules.length} rule{policy.rules.length !== 1 ? "s" : ""}
+                              </Badge>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
