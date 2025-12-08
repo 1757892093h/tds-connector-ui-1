@@ -1,4 +1,5 @@
 // Data space based data service
+//提供静态模拟数据
 export interface DataSpaceDataConfig {
   [key: string]: {
     dataOfferings: any[];
