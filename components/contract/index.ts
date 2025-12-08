@@ -1,0 +1,2 @@
+export { CreateContractPage } from "./CreateContractPage";
+

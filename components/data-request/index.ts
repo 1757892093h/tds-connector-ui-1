@@ -1,0 +1,2 @@
+export { DataRequestsListPage } from "./DataRequestsListPage";
+
