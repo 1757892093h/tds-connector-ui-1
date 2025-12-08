@@ -1,14 +1,16 @@
-import { useDataSpace } from "@/lib/contexts/DataSpaceContext";
-import { getDataForSpace } from "@/lib/services/DataSpaceDataService";
+import { useEffect, useState, useCallback } from "react";
+import { listOfferings } from "@/lib/services/offering-service";
+import { listContracts } from "@/lib/services/contract-service";
+import { listConnectors } from "@/lib/services/identity-service";
 import {
   DataContract,
   DataOffering,
   DataRequest,
   DataSourceType,
   ExternalDataOffering,
-  PolicyTemplate
+  PolicyTemplate,
+  Connector,
 } from "@/types";
-import { useEffect, useState } from "react";
 
 export interface UseDataOfferingsReturn {
   // Data offerings
@@ -83,21 +85,59 @@ export interface UseDataOfferingsReturn {
 
   // Computed values
   filteredOfferings: ExternalDataOffering[];
+  // Connectors
+  connectors: Connector[];
+  selectedConnectorId: string | null;
+  setSelectedConnectorId: (id: string | null) => void;
+  // Loading & refresh
+  isLoading: boolean;
+  refreshData: () => Promise<void>;
 }
 
 export function useDataOfferings(): UseDataOfferingsReturn {
-  const { currentDataSpace } = useDataSpace();
   const [dataOfferings, setDataOfferings] = useState<DataOffering[]>([]);
+  const [connectors, setConnectors] = useState<Connector[]>([]);
+  const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 当数据空间切换时，更新数据
+  // 从后端加载数据
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      // 获取当前用户的连接器
+      const connectorList = await listConnectors();
+      setConnectors(connectorList);
+
+      // 如果还没有选择连接器，默认选择第一个
+      const connectorIdToUse =
+        selectedConnectorId || connectorList[0]?.id || null;
+      if (!selectedConnectorId && connectorIdToUse) {
+        setSelectedConnectorId(connectorIdToUse);
+      }
+
+      // 并行加载数据资源和合约
+      const [offerings, contracts] = await Promise.all([
+        connectorIdToUse ? listOfferings(connectorIdToUse) : listOfferings(),
+        connectorIdToUse ? listContracts(connectorIdToUse, "provider") : listContracts(),
+      ]);
+
+      setDataOfferings(offerings);
+      setDataContracts(contracts);
+    } catch (error) {
+      // 保留旧数据，只记录错误
+      console.error("Failed to load data offerings/contracts:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedConnectorId]);
+
   useEffect(() => {
-    const spaceData = getDataForSpace(currentDataSpace.id);
-    setDataOfferings(spaceData.dataOfferings);
-    setPolicyTemplates(spaceData.policyTemplates);
-    setDataContracts(spaceData.dataContracts);
-    setExternalOfferings(spaceData.externalOfferings);
-    setDataRequests(spaceData.dataRequests);
-  }, [currentDataSpace.id]);
+    loadData();
+  }, [loadData]);
+
+  const refreshData = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
 
   const [policyTemplates, setPolicyTemplates] = useState<PolicyTemplate[]>([]);
 
@@ -279,5 +319,10 @@ export function useDataOfferings(): UseDataOfferingsReturn {
     createContract,
     requestData,
     filteredOfferings,
+    connectors,
+    selectedConnectorId,
+    setSelectedConnectorId,
+    isLoading,
+    refreshData,
   };
 }
