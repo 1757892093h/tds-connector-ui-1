@@ -1,8 +1,9 @@
 "use client";
 
-import { DataOfferingDetailsDialog } from "@/components/data-offering/DataOfferingDetailsDialog";
 import { CreateDataOfferingDialog } from "@/components/data-offering/CreateDataOfferingDialog";
+import { DataOfferingDetailsDialog } from "@/components/data-offering/DataOfferingDetailsDialog";
 import { MetricCard, StatusBadge } from "@/components/shared";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -16,8 +17,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDataOfferings } from "@/hooks";
+import { useRouter } from "@/i18n/navigation";
+import { listDataRequests } from "@/lib/services/data-request-service";
 import { cn } from "@/lib/utils";
 import {
   ContractStatus,
@@ -26,8 +36,9 @@ import {
   HostingStatus,
 } from "@/types";
 import {
-  Activity,
+  AlertCircle,
   AlertTriangle,
+  Ban,
   CheckCircle,
   Clock,
   Cloud,
@@ -36,18 +47,18 @@ import {
   Eye,
   File,
   FileText,
+  FileX,
   Globe,
+  Inbox,
   Link,
   MoreHorizontal,
+  Plus,
   Server,
   Shield,
   Trash2,
-  XCircle,
-  Ban,
-  FileX,
-  AlertCircle,
+  XCircle
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 // Data source type icon mapping
@@ -201,20 +212,51 @@ const getCrossBorderAuditLabel = (status: CrossBorderAuditStatus) => {
 };
 
 export function DataOfferingTab() {
+  const router = useRouter();
   const {
     dataOfferings,
     dataContracts,
     isAddOfferingOpen,
     setIsAddOfferingOpen,
+    connectors,
+    selectedConnectorId,
+    setSelectedConnectorId,
+    isLoading,
+    refreshData,
   } = useDataOfferings();
 
   // State for data details dialog
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedOffering, setSelectedOffering] = useState<any>(null);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
 
   const activeOfferingsCount = dataOfferings.filter(
     (o) => o.status === "active"
   ).length;
+
+  // Load pending requests count
+  const loadPendingRequestsCount = useCallback(async () => {
+    try {
+      setIsLoadingRequests(true);
+      const requests = await listDataRequests(
+        selectedConnectorId || undefined,
+        "provider",
+        "pending"
+      );
+      setPendingRequestsCount(requests.length);
+    } catch (error: any) {
+      console.error("Failed to load pending requests:", error);
+      // Don't show error toast, just set count to 0
+      setPendingRequestsCount(0);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, [selectedConnectorId]);
+
+  useEffect(() => {
+    loadPendingRequestsCount();
+  }, [loadPendingRequestsCount]);
 
   // Handle view details click
   const handleViewDetails = (offering: any) => {
@@ -222,29 +264,122 @@ export function DataOfferingTab() {
     setIsDetailsOpen(true);
   };
 
+  // Handle view requests click
+  const handleViewRequests = () => {
+    const query = selectedConnectorId ? `?connector_id=${selectedConnectorId}` : "";
+    router.push(`/data-requests${query}`);
+  };
+
+  // Handle create contract click
+  const handleCreateContract = () => {
+    router.push("/contracts/create");
+  };
+
+  const handleConnectorChange = (value: string) => {
+    setSelectedConnectorId(value || null);
+    refreshData();
+  };
+
+  const offeringsLoading = isLoading && dataOfferings.length === 0;
+  const contractsLoading = isLoading && dataContracts.length === 0;
+
+  const formatConnectorId = (connectorId: string) => {
+    const connector = connectors.find((c) => c.id === connectorId);
+    return connector?.did || connectorId;
+  };
+
+  const formatOffering = (offeringId: string) => {
+    const offering = dataOfferings.find((o) => o.id === offeringId);
+    return offering?.title || offeringId;
+  };
+
+  const formatContractTemplate = (templateId: string) => {
+    // 当前页面未加载模板列表，先以短ID展示
+    if (!templateId) return "";
+    if (templateId.startsWith("did:")) return templateId;
+    return templateId.length > 16 ? `${templateId.slice(0, 16)}…` : templateId;
+  };
+
+  const renderConnectorSelector = () => {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
+          Connector
+        </span>
+        <Select
+          value={selectedConnectorId || connectors[0]?.id}
+          onValueChange={handleConnectorChange}
+          disabled={!connectors.length}
+        >
+          <SelectTrigger className="w-[240px]">
+            <SelectValue
+              placeholder={
+                connectors.length ? "Select connector" : "No connectors"
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {connectors.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.display_name} ({c.did.slice(0, 20)}…)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      {/* Connector selector and refresh */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          {renderConnectorSelector()}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshData}
+            disabled={isLoading}
+          >
+            Refresh
+          </Button>
+        </div>
+        {!connectors.length && (
+          <div className="text-xs text-muted-foreground">
+            No connectors found. Please create a connector first.
+          </div>
+        )}
+      </div>
+
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <MetricCard
           title="Active Offerings"
-          value={activeOfferingsCount}
+          value={offeringsLoading ? "..." : activeOfferingsCount}
           description="Available for consumption"
           icon={Database}
           variant="primary"
         />
         <MetricCard
           title="Data Contracts"
-          value={dataContracts.length}
+          value={contractsLoading ? "..." : dataContracts.length}
           description="Signed data usage contracts"
           icon={FileText}
           variant="secondary"
         />
         <MetricCard
           title="Total Offerings"
-          value={dataOfferings.length}
+          value={offeringsLoading ? "..." : dataOfferings.length}
           description="All data offerings"
           icon={Globe}
+        />
+        <MetricCard
+          title="Pending Requests"
+          value={isLoadingRequests ? "..." : pendingRequestsCount}
+          description="Awaiting approval"
+          icon={Inbox}
+          variant="secondary"
         />
       </div>
 
@@ -259,19 +394,43 @@ export function DataOfferingTab() {
                   Manage your published data resources
                 </CardDescription>
               </div>
-              <CreateDataOfferingDialog
-                open={isAddOfferingOpen}
-                onOpenChange={setIsAddOfferingOpen}
-                onSuccess={() => {
-                  // 刷新数据列表，这里可以调用API重新获取数据
-                  toast.success("数据资源创建成功");
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleViewRequests}
+                  className="gap-2"
+                >
+                  <Inbox className="h-4 w-4" />
+                  View Requests
+                </Button>
+                <CreateDataOfferingDialog
+                  open={isAddOfferingOpen}
+                  onOpenChange={setIsAddOfferingOpen}
+                  onSuccess={() => {
+                    toast.success("数据资源创建成功");
+                    refreshData();
+                  }}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {dataOfferings.map((offering) => {
+            {offeringsLoading && (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            )}
+            {!offeringsLoading && dataOfferings.length === 0 && (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                No data offerings yet. Create one to get started.
+              </div>
+            )}
+            {!offeringsLoading && dataOfferings.length > 0 && (
+              <div className="space-y-3">
+                {dataOfferings.map((offering) => {
                 const DataSourceIcon = getDataSourceIcon(offering.dataType);
                 const RegistrationIcon = getRegistrationIcon(
                   offering.registrationStatus
@@ -283,7 +442,7 @@ export function DataOfferingTab() {
                   offering.crossBorderAuditStatus
                 );
 
-                return (
+                  return (
                   <div
                     key={offering.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -414,9 +573,10 @@ export function DataOfferingTab() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -430,17 +590,34 @@ export function DataOfferingTab() {
                   View active data usage contracts
                 </CardDescription>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateContract}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Create Contract
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {dataContracts.length === 0 ? (
-                <div className="text-muted-foreground py-8 text-center text-sm">
-                  No data contracts yet. Contracts are created when data
-                  requests are approved.
-                </div>
-              ) : (
-                dataContracts.map((contract) => {
+            {contractsLoading && (
+              <div className="space-y-3">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            )}
+            {!contractsLoading && dataContracts.length === 0 && (
+              <div className="text-muted-foreground py-8 text-center text-sm">
+                No data contracts yet. Contracts are created when data
+                requests are approved.
+              </div>
+            )}
+            {!contractsLoading && dataContracts.length > 0 && (
+              <div className="space-y-3">
+                {dataContracts.map((contract) => {
                   const ContractStatusIcon = getContractStatusIcon(
                     contract.status
                   );
@@ -494,7 +671,7 @@ export function DataOfferingTab() {
                               Provider Connector:
                             </span>
                             <span className="ml-2 truncate font-mono">
-                              {contract.providerConnectorId}
+                            {formatConnectorId(contract.providerConnectorId)}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -502,7 +679,7 @@ export function DataOfferingTab() {
                               Consumer Connector:
                             </span>
                             <span className="ml-2 truncate font-mono">
-                              {contract.consumerConnectorId}
+                            {formatConnectorId(contract.consumerConnectorId)}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -510,7 +687,7 @@ export function DataOfferingTab() {
                               Contract Template:
                             </span>
                             <span className="ml-2 truncate font-mono">
-                              {contract.contractTemplateId}
+                            {formatContractTemplate(contract.contractTemplateId)}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -518,7 +695,7 @@ export function DataOfferingTab() {
                               Data Offering:
                             </span>
                             <span className="ml-2 truncate font-mono">
-                              {contract.dataOfferingId}
+                            {formatOffering(contract.dataOfferingId)}
                             </span>
                           </div>
                           {contract.contractAddress && (
@@ -576,9 +753,9 @@ export function DataOfferingTab() {
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
