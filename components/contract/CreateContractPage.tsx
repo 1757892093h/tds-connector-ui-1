@@ -84,8 +84,6 @@ export function CreateContractPage() {
     null;
   const selectedTemplatePoliciesCount =
     selectedTemplate?.policyTemplates?.length ?? 0;
-  const selectedTemplatePoliciesCount =
-    selectedTemplate?.policyTemplates?.length ?? 0;
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(contractFormSchema),
@@ -225,11 +223,6 @@ export function CreateContractPage() {
     const connector = connectors.find((c) => c.id === connectorId);
     return connector?.display_name || connectorId;
   };
-
-  // 获取选中的合约模板
-  const selectedTemplate =
-    contractTemplates.find((t) => t.id === form.watch("contractTemplateId")) ||
-    null;
 
   if (isLoading) {
     return (
